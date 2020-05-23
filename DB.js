@@ -99,7 +99,6 @@ DB.prototype.update = function(definition) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
 
-	console.log(this._sql_params);
 	return `UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`;
 }
 
@@ -111,7 +110,6 @@ DB.prototype.select = function() {
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
-	console.log(this._sql_params);
 	return `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} ${limit}`;
 }
 
@@ -121,7 +119,6 @@ DB.prototype.delete = function() {
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
-	console.log(this._sql_params);
 	return `DELETE FROM \`${ this._table_name }\` ${wheres} ${limit}`;
 }
 
