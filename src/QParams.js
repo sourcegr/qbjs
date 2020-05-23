@@ -45,7 +45,7 @@ QParams.prototype.parse_input_clause = function(join_term, col, mod, val) {
 		val = mod;
 		mod = '=';
 	}
-	this.add_data(join_term, key, mod, val);
+	this.add_data(join_term, col, mod, val);
 }
 
 module.exports = QParams;
