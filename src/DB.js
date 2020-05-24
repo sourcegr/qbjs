@@ -1,5 +1,13 @@
 const QParams = require('./QParams');
 
+let connector = async function(sql, sql_params) {
+	return [sql, sql_params];
+}
+
+function init_db(connector_pool = null) {
+	connector = connector_pool;
+}
+
 function DB() {
 	this._sql_params = [];
 	this._fields = '*';
@@ -51,7 +59,7 @@ DB.prototype._createWheres = function(data = null) {
 		str += '(';
 	}
 
-	data.data.map(function(spec, index) {
+	data.data.map((spec, index) => {
 		if (index > 0) str += ` ${spec[3]} `;
 		if (Array.isArray(spec)) {
 			str += '`' + spec[0] + '` ' + spec[1] + ' ?'
@@ -61,7 +69,7 @@ DB.prototype._createWheres = function(data = null) {
 				str += this._createWheres(spec);
 			}
 		}
-	}.bind(this));
+	});
 
 	if (data.data.length > 1) {
 		str += ')';
@@ -88,7 +96,7 @@ DB.prototype._createLimit = function() {
 
 
 
-DB.prototype.select = function(fields = null) {
+DB.prototype.select = async function(fields = null) {
 	if (fields) {
 		this.fields(fields);
 	}
@@ -98,11 +106,16 @@ DB.prototype.select = function(fields = null) {
 	const limit = this._createLimit();
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
+	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} ${limit}`;
 
-	return [`SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} ${limit}`, this._sql_params];
+	if (connector) {
+		return await connector(sql, this._sql_params);
+	}
+
+	return await connector(sql, this._sql_params);
 }
 
-DB.prototype.selectOne = function(fields) {
+DB.prototype.selectOne = async function(fields) {
 	if (fields) {
 		this.fields(fields);
 	}
@@ -112,32 +125,35 @@ DB.prototype.selectOne = function(fields) {
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
-	return [`SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`, this._sql_params];
+	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`;
+	return await connector(sql, this._sql_params);
 }
 
-DB.prototype.update = function(definition) {
-	const sets = Object.keys(definition).reduce(function(acc, key) {
+DB.prototype.update = async function(definition) {
+	const sets = Object.keys(definition).reduce((acc, key) => {
 		acc.push('`' + key + '`= ?');
 		this._sql_params.push(definition[key]);
 		return acc;
-	}.bind(this), []).join(', ');
+	}, []).join(', ');
 
 	const limit = this._createLimit();
 
 	let wheres = this._createWheres();
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
-	return [`UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`, this._sql_params];
+	const sql = `UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`;
+	return await connector(sql, this._sql_params);
 }
 
 
-DB.prototype.delete = function() {
+DB.prototype.delete = async function() {
 	let wheres = this._createWheres();
 	const limit = this._createLimit();
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
-	return [`DELETE FROM \`${ this._table_name }\` ${wheres} ${limit}`, this._sql_params];
+	const sql = `DELETE FROM \`${ this._table_name }\` ${wheres} ${limit}`;
+	return await connector(sql, this._sql_params);
 }
 
 
@@ -165,4 +181,6 @@ DB.prototype.fields = function(fields) {
 }
 
 
-module.exports = DB;
+module.exports = {
+	DB, init_db
+};
