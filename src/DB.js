@@ -214,7 +214,7 @@ DB.prototype.selectOne = async function(fields) {
 
 	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`;
 	const result = await connector.query(sql, this._sql_params);
-	return result.length > 0 ? result[1] : null;
+	return result.length > 0 ? result[0] : null;
 }
 
 DB.prototype.update = function(definition) {
