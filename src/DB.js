@@ -1,13 +1,18 @@
 const QParams = require('./QParams');
 
-let connector = async function(sql, sql_params) {
-	return [sql, sql_params];
+let connector = {
+	query: async function(sql, sql_params) {
+		return [sql, sql_params];
+	}
 }
 
 function init_db(connector_pool = null) {
 	connector = connector_pool;
 }
 
+/**
+ * constructor
+ */
 function DB() {
 	this._sql_params = [];
 	this._fields = '*';
@@ -19,36 +24,104 @@ function DB() {
 	this._data = new QParams();
 }
 
-
+/**
+ * Factory function to init a BUilder
+ * and set the table for the query
+ *
+ * @param {String} table_name
+ *
+ * @return {DB} - Builder
+ */
 DB.Table = function(table_name){
 	const db = new DB();
 	db._table_name = table_name;
 	return db;
 }
 
+/**
+ * Sets the number or results to get
+ *
+ * @param {Number} limit - The number of results to get
+ *
+ * @return {DB} - Builder
+ *
+ * @example .startAt(4).limit(10) will skip 4 results and fetch 10 results
+ */
 DB.prototype.limit = function(limit) {
 	this._limit = limit;
 	return this;
 }
 
+/**
+ * Sets the number for the results to skip
+ *
+ * @param {Number} at - How many results to skip
+ *
+ * @return {DB} - Builder
+ *
+ * @example .startAt(4).limit(10) will skip 4 results and fetch 10 results
+ */
 DB.prototype.startAt = function(at) {
 	this._startAt = at;
 	return this;
 }
+
+/**
+ * Sets the column and (optionally) the way to sort results by
+ *
+ * @param {String} col - Column name
+ * @param {String} way - ASC or DESC
+ *
+ * @return {DB} - Builder
+ *
+ * @example .orderBy('name') will sort by name ASCENDING
+ * @example .orderBy('name', DESC) will sort by name DESC
+ */
 DB.prototype.orderBy = function(col, way = null) {
 	this._order_col = col;
 	if (way) this._order_way = way;
 }
 
+/**
+ * Sets a where clause.
+ * Joins prevoius wheres with AND
+ *
+ * @param {String|Function|Object} col - Column name
+ * @param {String|null=} mod - Modifier, or value in val is ommited
+ * @param {String|null=} val - The value
+ *
+ * @example(.where({id:1})
+ * @example(.where('id', '=', '1')
+ * @example(.where('id', '1')
+ *
+ * @return {DB} - Builder
+ */
 DB.prototype.where = function(col, mod = null, val = null) {
 	this._data.where(col, mod, val);
 	return this;
 }
 
+/**
+ * Sets a where clause.
+ * Joins prevous wheres with OR
+ *
+ * @param {String|Function|Object} col - Column name
+ * @param {String|null=} mod - Modifier, or value in val is ommited
+ * @param {String|null=} val - The value
+ *
+ * @example(.where({id:1})
+ * @example(.where('id', '=', '1')
+ * @example(.where('id', '1')
+ *
+ * @return {DB} - Builder
+ */
+
 DB.prototype.orWhere = function(col, mod = null, val = null) {
 	this._data.orWhere(col, mod, val);
 	return this;
 }
+
+
 
 
 DB.prototype._createWheres = function(data = null) {
@@ -88,15 +161,20 @@ DB.prototype._createLimit = function() {
 }
 
 
+/**
+ * Runs a raw SQL Query
+ *
+ * @param {String} sql - The raw SQL Statement
+ * @param {Array=} params - Array with the parameters
+ *
+ * @return - result
+ *
+ */
+DB.prototype.raw = async function(sql, params=null) {
+	return await connector.query(sql, params);
+}
 
-
-
-
-
-
-
-
-DB.prototype.select = async function(fields = null) {
+DB.prototype.select = function(fields = null) {
 	if (fields) {
 		this.fields(fields);
 	}
@@ -108,14 +186,23 @@ DB.prototype.select = async function(fields = null) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} ${limit}`;
 
-	if (connector) {
-		return await connector(sql, this._sql_params);
-	}
-
-	return await connector(sql, this._sql_params);
+	return connector.query(sql, this._sql_params);
 }
 
-DB.prototype.selectOne = async function(fields) {
+
+/**
+ * Runs a select statement for the provided fields and returns the first result
+ *
+ * @param {Array|String|empty} fields - The fields to select. * Can be Array, of strings a simple comma separated string null/empty for all collumns
+ *
+ * @return {Array|Null} - the first set of results or null
+ *
+ * @example select(['id', 'name']} // select id, name
+ * @example select('gender, email'} // select gender, email ...
+ * @example select() // select * ...
+ *
+ */
+DB.prototype.selectOne = function(fields) {
 	if (fields) {
 		this.fields(fields);
 	}
@@ -126,10 +213,10 @@ DB.prototype.selectOne = async function(fields) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
 	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`;
-	return await connector(sql, this._sql_params);
+	return connector.query(sql, this._sql_params);
 }
 
-DB.prototype.update = async function(definition) {
+DB.prototype.update = function(definition) {
 	const sets = Object.keys(definition).reduce((acc, key) => {
 		acc.push('`' + key + '`= ?');
 		this._sql_params.push(definition[key]);
@@ -142,27 +229,22 @@ DB.prototype.update = async function(definition) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
 	const sql = `UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`;
-	return await connector(sql, this._sql_params);
+	return connector.query(sql, this._sql_params);
 }
 
 
-DB.prototype.delete = async function() {
+DB.prototype.delete = function() {
 	let wheres = this._createWheres();
 	const limit = this._createLimit();
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
 	const sql = `DELETE FROM \`${ this._table_name }\` ${wheres} ${limit}`;
-	return await connector(sql, this._sql_params);
+	return connector.query(sql, this._sql_params);
 }
 
 
 
-
-// DB.prototype.execute = function() {
-// 	// const groups = this._createGroup();
-// 	return this;
-// }
 
 
 DB.prototype.fields = function(fields) {
