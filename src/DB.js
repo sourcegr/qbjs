@@ -202,7 +202,7 @@ DB.prototype.select = function(fields = null) {
  * @example select() // select * ...
  *
  */
-DB.prototype.selectOne = function(fields) {
+DB.prototype.selectOne = async function(fields) {
 	if (fields) {
 		this.fields(fields);
 	}
@@ -213,7 +213,8 @@ DB.prototype.selectOne = function(fields) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 
 	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`;
-	return connector.query(sql, this._sql_params);
+	const result = await connector.query(sql, this._sql_params);
+	return result.length > 0 ? result[1] : null;
 }
 
 DB.prototype.update = function(definition) {
