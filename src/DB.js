@@ -103,31 +103,19 @@ DB.prototype.where = function(col, mod = null, val = null) {
 }
 
 DB.prototype.whereIn = function(col, match_list = []) {
-	if (!(Array.isArray(match_list))) {
-		return this;
-	}
-	this._data.whereIn(col, 'IN', match_list.join(','));
+	this._data.whereIn(col, match_list);
 	return this;
 }
 DB.prototype.whereNotIn = function(col, match_list = []) {
-	if (!(Array.isArray(match_list))) {
-		return this;
-	}
-	this._data.whereNotIn(col, 'NOT IN', match_list.join(','));
+	this._data.whereNotIn(col, match_list);
 	return this;
 }
 DB.prototype.orWhereIn = function(col, match_list = []) {
-	if (!(Array.isArray(match_list))) {
-		return this;
-	}
-	this._data.orWhereIn(col, 'IN', match_list.join(','));
+	this._data.orWhereIn(col, match_list);
 	return this;
 }
 DB.prototype.orWhereNotIn = function(col, match_list = []) {
-	if (!(Array.isArray(match_list))) {
-		return this;
-	}
-	this._data.orWhereNotIn(col, 'NOT IN', match_list.join(','));
+	this._data.orWhereNotIn(col, match_list);
 	return this;
 }
 
@@ -155,6 +143,7 @@ DB.prototype.orWhere = function(col, mod = null, val = null) {
 
 
 DB.prototype._createWheres = function(data = null) {
+	// console.log(data)
 	if (!data) data = this._data.data;
 	if (!data.data) return '';
 	let str = '';
@@ -163,14 +152,24 @@ DB.prototype._createWheres = function(data = null) {
 	}
 
 	data.data.map((spec, index) => {
+		// console.log('==', typeof spec, spec, '==')
 		if (Array.isArray(spec)) {
 			if (index > 0) str += ` ${spec[3]} `;
 			let questionmark = '?';
-			if (spec[1] === 'IN' || spec[1] === 'NOT IN') {
+			if (spec[1] === 'IN' || spec[1] === 'NOT IN' || spec[1] === 'NOT IN' || spec[1] === 'NOT WHERE IN') {
 				questionmark = '(?)';
 			}
-			str += '`' + spec[0] + '`' + spec[1] + questionmark;
-			this._sql_params.push(spec[2]);
+			// console.log('-')
+			// console.log(spec[2])
+			if (typeof spec[2] === 'object' && spec[2] !== null) {
+				const [sql, params] = spec[2].getData();
+				str += '`' + spec[0] + '`' + spec[1] + `(${sql})`;
+				this._sql_params = [...this._sql_params, ...params];
+			} else {
+				str += '`' + spec[0] + '`' + spec[1] + questionmark;
+				this._sql_params.push(spec[2]);
+			}
+
 		} else {
 			if (typeof spec === 'object' && spec !== null) {
 				str += ` ${spec.join_term} ` + this._createWheres(spec);
@@ -213,8 +212,13 @@ DB.prototype.raw = async function(sql, params=null) {
 }
 
 DB.prototype.select = function(fields = null) {
-	this.fields(fields);
+	const [sql, data] = this.getData(fields);
 
+	return connector.query(sql, data);
+}
+
+DB.prototype.getData = function(fields = null) {
+	if (fields !== null) this.fields(fields);
 	let wheres = this._createWheres();
 	const orders = this._createOrderBy();
 	const limit = this._createLimit();
@@ -223,7 +227,7 @@ DB.prototype.select = function(fields = null) {
 	wheres = wheres ? ` WHERE ${wheres}` : '';
 	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${joins} ${wheres} ${orders} ${limit}`;
 
-	return connector.query(sql, this._sql_params);
+	return [sql, this._sql_params];
 }
 
 
@@ -290,6 +294,7 @@ DB.prototype.delete = function() {
 
 
 DB.prototype.fields = function(fields = null) {
+
 	if (fields === '' || fields === null || fields === undefined) {
 		this._fields = '`' + this._table_name + '`.*';
 		return this;

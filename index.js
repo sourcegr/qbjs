@@ -5,6 +5,20 @@ const {DB, init_db} = require('./src/DB');
 //               .where('id', 4)
 //               .select());
 //
+
+
+// console.log(DB.Table('projects')
+//               .where('id',3)
+//               .whereIn('user_id',
+// 	              DB.Table('project_users')
+// 	                .fields('id')
+// 	                .where({user_id:10})
+// 	                .where({is_admin:true})
+//               )
+//               .where('name', 'papas')
+//               .select());
+
+
 // console.log(DB.Table('projects')
 //               .where('id', 3)
 //               .orWhere('id', 4)
