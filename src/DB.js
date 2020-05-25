@@ -14,6 +14,7 @@ function init_db(connector_pool = null) {
  * constructor
  */
 function DB() {
+	this._joins = [];
 	this._sql_params = [];
 	this._fields = '*';
 	this._table_name = null;
@@ -101,9 +102,38 @@ DB.prototype.where = function(col, mod = null, val = null) {
 	return this;
 }
 
+DB.prototype.whereIn = function(col, match_list = []) {
+	if (!(Array.isArray(match_list))) {
+		return this;
+	}
+	this._data.whereIn(col, 'IN', match_list.join(','));
+	return this;
+}
+DB.prototype.whereNotIn = function(col, match_list = []) {
+	if (!(Array.isArray(match_list))) {
+		return this;
+	}
+	this._data.whereNotIn(col, 'NOT IN', match_list.join(','));
+	return this;
+}
+DB.prototype.orWhereIn = function(col, match_list = []) {
+	if (!(Array.isArray(match_list))) {
+		return this;
+	}
+	this._data.orWhereIn(col, 'IN', match_list.join(','));
+	return this;
+}
+DB.prototype.orWhereNotIn = function(col, match_list = []) {
+	if (!(Array.isArray(match_list))) {
+		return this;
+	}
+	this._data.orWhereNotIn(col, 'NOT IN', match_list.join(','));
+	return this;
+}
+
 /**
  * Sets a where clause.
- * Joins prevous wheres with OR
+ * Joins previous wheres with OR
  *
  * @param {String|Function|Object} col - Column name
  * @param {String|null=} mod - Modifier, or value in val is ommited
@@ -128,26 +158,34 @@ DB.prototype._createWheres = function(data = null) {
 	if (!data) data = this._data.data;
 	if (!data.data) return '';
 	let str = '';
-	if (data.data.length > 1) {
+	if (data.data.length > 0) {
 		str += '(';
 	}
 
 	data.data.map((spec, index) => {
-		if (index > 0) str += ` ${spec[3]} `;
 		if (Array.isArray(spec)) {
-			str += '`' + spec[0] + '` ' + spec[1] + ' ?'
+			if (index > 0) str += ` ${spec[3]} `;
+			let questionmark = '?';
+			if (spec[1] === 'IN' || spec[1] === 'NOT IN') {
+				questionmark = '(?)';
+			}
+			str += '`' + spec[0] + '`' + spec[1] + questionmark;
 			this._sql_params.push(spec[2]);
 		} else {
 			if (typeof spec === 'object' && spec !== null) {
-				str += this._createWheres(spec);
+				str += ` ${spec.join_term} ` + this._createWheres(spec);
 			}
 		}
 	});
 
-	if (data.data.length > 1) {
+	if (data.data.length > 0) {
 		str += ')';
 	}
 	return str;
+}
+
+DB.prototype._createJoins = function() {
+	return this._joins.join(' ');
 }
 
 DB.prototype._createOrderBy = function() {
@@ -175,16 +213,15 @@ DB.prototype.raw = async function(sql, params=null) {
 }
 
 DB.prototype.select = function(fields = null) {
-	if (fields) {
-		this.fields(fields);
-	}
+	this.fields(fields);
 
 	let wheres = this._createWheres();
 	const orders = this._createOrderBy();
 	const limit = this._createLimit();
+	const joins = this._createJoins();
 
 	wheres = wheres ? ` WHERE ${wheres}` : '';
-	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} ${limit}`;
+	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${joins} ${wheres} ${orders} ${limit}`;
 
 	return connector.query(sql, this._sql_params);
 }
@@ -203,18 +240,22 @@ DB.prototype.select = function(fields = null) {
  *
  */
 DB.prototype.selectOne = async function(fields) {
-	if (fields) {
-		this.fields(fields);
-	}
+	this.fields(fields);
 
 	let wheres = this._createWheres();
 	const orders = this._createOrderBy();
+	const joins = this._createJoins();
 
-	wheres = wheres ? ` WHERE ${wheres}` : '';
+	wheres = wheres ? `WHERE ${wheres}` : '';
 
-	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${wheres} ${orders} LIMIT 1`;
+	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${joins} ${wheres} ${orders} LIMIT 1`;
 	const result = await connector.query(sql, this._sql_params);
 	return result.length > 0 ? result[0] : null;
+}
+
+DB.prototype.join = function(table, jointext, how='LEFT') {
+	this._joins.push(`${how} JOIN ${table} ${jointext}`);
+	return this;
 }
 
 DB.prototype.update = function(definition) {
@@ -227,7 +268,7 @@ DB.prototype.update = function(definition) {
 	const limit = this._createLimit();
 
 	let wheres = this._createWheres();
-	wheres = wheres ? ` WHERE ${wheres}` : '';
+	wheres = wheres ? `WHERE ${wheres}` : '';
 
 	const sql = `UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`;
 	return connector.query(sql, this._sql_params);
@@ -248,14 +289,20 @@ DB.prototype.delete = function() {
 
 
 
-DB.prototype.fields = function(fields) {
+DB.prototype.fields = function(fields = null) {
 	if (fields === '' || fields === null || fields === undefined) {
-		this._fields = '*';
+		this._fields = '`' + this._table_name + '`.*';
 		return this;
 	}
 
 	if (Array.isArray(fields)) {
-		this._fields = '`' + fields.join('`,`') + '`';
+		this._fields = fields.reduce((acc, field) => {
+			acc.push( field.indexOf('.') > -1
+			   ? field
+			   : '`' + this._table_name + '`.`' + field + '`'
+			);
+			return acc;
+		}, []).join(',');
 		return this;
 	}
 
