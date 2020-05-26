@@ -32,8 +32,8 @@ const {DB, init_db} = require('./src/DB');
 //               })
 //               .join('users', 'ON users.id = projects.user_id', 'LEFT')
 //               .select());
-
-console.log(DB.Table('projects').insert({
-	name: 'papas'
-}));
+//
+// console.log(DB.Table('projects').insert({
+// 	name: 'papas'
+// }));
 module.exports = {DB, init_db};
