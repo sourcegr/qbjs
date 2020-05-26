@@ -278,6 +278,18 @@ DB.prototype.update = function(definition) {
 	return connector.query(sql, this._sql_params);
 }
 
+DB.prototype.insert = function(definition) {
+	if (typeof definition === 'object' && definition !== null) {
+		const fields_list = create_fields_list(Object.keys(definition), this._table_name);
+		this._sql_params = Object.values(definition)
+		const questions = Array(this._sql_params.length).fill('?').join(',');
+
+		const sql = `INSERT INTO \`${ this._table_name }\` (${ fields_list }) VALUES (${ questions })`;
+		return connector.query(sql, this._sql_params);
+	}
+
+}
+
 
 DB.prototype.delete = function() {
 	let wheres = this._createWheres();
@@ -301,13 +313,7 @@ DB.prototype.fields = function(fields = null) {
 	}
 
 	if (Array.isArray(fields)) {
-		this._fields = fields.reduce((acc, field) => {
-			acc.push( field.indexOf('.') > -1
-			   ? field
-			   : '`' + this._table_name + '`.`' + field + '`'
-			);
-			return acc;
-		}, []).join(',');
+		this._fields = create_fields_list(fields, this._table_name);
 		return this;
 	}
 
@@ -316,6 +322,16 @@ DB.prototype.fields = function(fields = null) {
 }
 
 
+
+function create_fields_list(fields, table_name) {
+	return fields.reduce((acc, field) => {
+		acc.push( field.indexOf('.') > -1
+		   ? field
+		   : '`' + table_name + '`.`' + field + '`'
+		);
+		return acc;
+	}, []).join(',');
+}
 module.exports = {
 	DB, init_db
 };
