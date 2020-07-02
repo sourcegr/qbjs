@@ -332,6 +332,5 @@ function create_fields_list(fields, table_name) {
 		return acc;
 	}, []).join(',');
 }
-export default {
-	DB, init_db
-};
+
+export default DB;

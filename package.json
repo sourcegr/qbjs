@@ -4,7 +4,8 @@
   "description": "A dead simple query builder for javascript",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run build && clear && node lib/tests.js",
+    "build": "babel --presets es2015 -d lib/ src"
   },
   "repository": {
     "type": "git",
@@ -15,5 +16,10 @@
   "bugs": {
     "url": "https://github.com/sourcegr/qbjs/issues"
   },
-  "homepage": "https://github.com/sourcegr/qbjs#readme"
+  "homepage": "https://github.com/sourcegr/qbjs#readme",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1"
+  },
+  "dependencies": {}
 }

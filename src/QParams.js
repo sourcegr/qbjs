@@ -16,16 +16,16 @@ QParams.prototype.orWhere = function(col, mod, val) {
 
 
 QParams.prototype.whereIn = function(col, val) {
-	return this.parse_input_clause('AND', col, 'IN', val);
+	return this.parse_input_clause('AND', col, ' IN ', val);
 }
 QParams.prototype.whereNotIn = function(col, val) {
-	return this.parse_input_clause('AND', col, 'NOT IN', val);
+	return this.parse_input_clause('AND', col, ' NOT IN ', val);
 }
 QParams.prototype.orWhereIn = function(col, val) {
-	return this.parse_input_clause('OR', col, 'IN', val);
+	return this.parse_input_clause('OR', col, ' IN ', val);
 }
 QParams.prototype.orWhereNotIn = function(col, val) {
-	return this.parse_input_clause('OR', col, 'NOT IN', val);
+	return this.parse_input_clause('OR', col, ' NOT IN ', val);
 }
 
 QParams.prototype.add_data = function(join_term, col, mod, val) {
