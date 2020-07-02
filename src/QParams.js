@@ -65,4 +65,4 @@ QParams.prototype.parse_input_clause = function(join_term, col, mod, val) {
 	return this;
 }
 
-module.exports = QParams;
+export default QParams;

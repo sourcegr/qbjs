@@ -1,4 +1,4 @@
-const QParams = require('./QParams');
+import QParams from './QParams';
 
 let connector = {
 	query: async function(sql, sql_params) {
@@ -332,6 +332,6 @@ function create_fields_list(fields, table_name) {
 		return acc;
 	}, []).join(',');
 }
-module.exports = {
+export default {
 	DB, init_db
 };
