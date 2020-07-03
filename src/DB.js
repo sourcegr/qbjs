@@ -276,10 +276,24 @@ DB.prototype.select = function (...args) {
         this.cols(args);
     }
     const [sql, params] = this._getSelect();
-    return connector.insert(sql, params);
+    return connector.select(sql, params);
 }
 
-DB.prototype.insert = function (definition) {
+DB.prototype.insert = function (def) {
+	if (!(typeof def === 'object' && def !== null)) {
+        throw new Error("INSERT required an object");
+    }
+
+	const cols = this._is_loose ? Object.keys(def) : Object.keys(def).map(this.C().grammar.quote);
+	if (!cols.length) {
+	    throw new Error("INSERT Definition should not be an ampty object");
+    }
+
+	this._sql_params = Object.values(def);
+	const qs = Array(this._sql_params.length).fill('?').join(',');
+
+	const sql = `INSERT INTO ${ this._is_loose ? this._table : this.C().grammar.quote(this._table) } (${cols}) VALUES (${qs})`;
+	return connector.insert(sql, this._sql_params);
 }
 
 DB.prototype.update = function (definition) {
