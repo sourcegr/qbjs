@@ -1,336 +1,303 @@
 import QParams from './QParams';
+import {commaStringToArray} from './lib/index';
 
-let connector = {
-	query: async function(sql, sql_params) {
-		return [sql, sql_params];
-	}
-}
+let connector = null;
 
-function init_db(connector_pool = null) {
-	connector = connector_pool;
-}
 
-/**
- * constructor
- */
 function DB() {
-	this._joins = [];
-	this._sql_params = [];
-	this._fields = '*';
-	this._table_name = null;
-	this._order_col = null;
-	this._order_way = null;
-	this._limit = null;
-	this._startAt = 0;
-	this._data = new QParams();
+    this._select_all = true;
+    this._is_loose = true;
+
+    this._joins = [];
+    this._sql_params = [];
+
+    this._cols = '*';
+    this._table = null;
+    this._order_col = null;
+    this._order_way = null;
+    this._limit = null;
+    this._groupBy = null;
+    this._having = null;
+    this._start_at = 0;
+    this._data = new QParams();
+    this.W = this._data.parse_input_clause.bind(this._data);
 }
 
-/**
- * Factory function to init a BUilder
- * and set the table for the query
- *
- * @param {String} table_name
- *
- * @return {DB} - Builder
- */
-DB.Table = function(table_name){
-	const db = new DB();
-	db._table_name = table_name;
-	return db;
+DB.connect = function (c) {
+    connector = c;
 }
 
-/**
- * Sets the number or results to get
- *
- * @param {Number} limit - The number of results to get
- *
- * @return {DB} - Builder
- *
- * @example .startAt(4).limit(10) will skip 4 results and fetch 10 results
- */
-DB.prototype.limit = function(limit) {
-	this._limit = limit;
-	return this;
+DB.Table = function (table) {
+    if (!connector) throw new Error('No connector specified');
+    const db = new DB();
+    db._table = table;
+    return db;
 }
 
-/**
- * Sets the number for the results to skip
- *
- * @param {Number} at - How many results to skip
- *
- * @return {DB} - Builder
- *
- * @example .startAt(4).limit(10) will skip 4 results and fetch 10 results
- */
-DB.prototype.startAt = function(at) {
-	this._startAt = at;
-	return this;
-}
-
-/**
- * Sets the column and (optionally) the way to sort results by
- *
- * @param {String} col - Column name
- * @param {String} way - ASC or DESC
- *
- * @return {DB} - Builder
- *
- * @example .orderBy('name') will sort by name ASCENDING
- * @example .orderBy('name', DESC) will sort by name DESC
- */
-DB.prototype.orderBy = function(col, way = null) {
-	this._order_col = col;
-	if (way) this._order_way = way;
-}
-
-/**
- * Sets a where clause.
- * Joins prevoius wheres with AND
- *
- * @param {String|Function|Object} col - Column name
- * @param {String|null=} mod - Modifier, or value in val is ommited
- * @param {String|null=} val - The value
- *
- * @example(.where({id:1})
- * @example(.where('id', '=', '1')
- * @example(.where('id', '1')
- *
- * @return {DB} - Builder
- */
-DB.prototype.where = function(col, mod = null, val = null) {
-	this._data.where(col, mod, val);
-	return this;
-}
-
-DB.prototype.whereIn = function(col, match_list = []) {
-	this._data.whereIn(col, match_list);
-	return this;
-}
-DB.prototype.whereNotIn = function(col, match_list = []) {
-	this._data.whereNotIn(col, match_list);
-	return this;
-}
-DB.prototype.orWhereIn = function(col, match_list = []) {
-	this._data.orWhereIn(col, match_list);
-	return this;
-}
-DB.prototype.orWhereNotIn = function(col, match_list = []) {
-	this._data.orWhereNotIn(col, match_list);
-	return this;
-}
-
-/**
- * Sets a where clause.
- * Joins previous wheres with OR
- *
- * @param {String|Function|Object} col - Column name
- * @param {String|null=} mod - Modifier, or value in val is ommited
- * @param {String|null=} val - The value
- *
- * @example(.where({id:1})
- * @example(.where('id', '=', '1')
- * @example(.where('id', '1')
- *
- * @return {DB} - Builder
- */
-
-DB.prototype.orWhere = function(col, mod = null, val = null) {
-	this._data.orWhere(col, mod, val);
-	return this;
-}
-
-
-
-
-DB.prototype._createWheres = function(data = null) {
-	// console.log(data)
-	if (!data) data = this._data.data;
-	if (!data.data) return '';
-	let str = '';
-	if (data.data.length > 0) {
-		str += '(';
-	}
-
-	data.data.map((spec, index) => {
-		// console.log('==', typeof spec, spec, '==')
-		if (Array.isArray(spec)) {
-			if (index > 0) str += ` ${spec[3]} `;
-			let questionmark = '?';
-			if (spec[1] === 'IN' || spec[1] === 'NOT IN' || spec[1] === 'NOT IN' || spec[1] === 'NOT WHERE IN') {
-				questionmark = '(?)';
-			}
-			// console.log('-')
-			// console.log(spec[2])
-			if (typeof spec[2] === 'object' && spec[2] !== null) {
-				const [sql, params] = spec[2].getData();
-				str += '`' + spec[0] + '`' + spec[1] + `(${sql})`;
-				this._sql_params = [...this._sql_params, ...params];
-			} else {
-				str += '`' + spec[0] + '`' + spec[1] + questionmark;
-				this._sql_params.push(spec[2]);
-			}
-
-		} else {
-			if (typeof spec === 'object' && spec !== null) {
-				str += ` ${spec.join_term} ` + this._createWheres(spec);
-			}
-		}
-	});
-
-	if (data.data.length > 0) {
-		str += ')';
-	}
-	return str;
-}
-
-DB.prototype._createJoins = function() {
-	return this._joins.join(' ');
-}
-
-DB.prototype._createOrderBy = function() {
-	if (!this._order_col) return '';
-	return 'ORDER BY `' + this._order_col + '`' + this._order_way ? this._order_way : '';
-}
-
-DB.prototype._createLimit = function() {
-	if (!this._limit) return '';
-	return 'LIMIT ' + (this._startAt ? `${this._startAt}, ` : '') + this._limit;
-}
-
-
-/**
- * Runs a raw SQL Query
- *
- * @param {String} sql - The raw SQL Statement
- * @param {Array=} params - Array with the parameters
- *
- * @return - result
- *
- */
-DB.prototype.raw = async function(sql, params=null) {
-	return await connector.query(sql, params);
-}
-
-DB.prototype.select = function(fields = null) {
-	const [sql, data] = this.getData(fields);
-
-	return connector.query(sql, data);
-}
-
-DB.prototype.getData = function(fields = null) {
-	if (fields !== null) this.fields(fields);
-	let wheres = this._createWheres();
-	const orders = this._createOrderBy();
-	const limit = this._createLimit();
-	const joins = this._createJoins();
-
-	wheres = wheres ? ` WHERE ${wheres}` : '';
-	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${joins} ${wheres} ${orders} ${limit}`;
-
-	return [sql, this._sql_params];
-}
-
-
-/**
- * Runs a select statement for the provided fields and returns the first result
- *
- * @param {Array|String|empty} fields - The fields to select. * Can be Array, of strings a simple comma separated string null/empty for all collumns
- *
- * @return {Array|Null} - the first set of results or null
- *
- * @example select(['id', 'name']} // select id, name
- * @example select('gender, email'} // select gender, email ...
- * @example select() // select * ...
- *
- */
-DB.prototype.selectOne = async function(fields) {
-	this.fields(fields);
-
-	let wheres = this._createWheres();
-	const orders = this._createOrderBy();
-	const joins = this._createJoins();
-
-	wheres = wheres ? `WHERE ${wheres}` : '';
-
-	const sql = `SELECT ${this._fields} FROM \`${ this._table_name }\` ${joins} ${wheres} ${orders} LIMIT 1`;
-	const result = await connector.query(sql, this._sql_params);
-	return result.length > 0 ? result[0] : null;
-}
-
-DB.prototype.join = function(table, jointext, how='LEFT') {
-	this._joins.push(`${how} JOIN ${table} ${jointext}`);
-	return this;
-}
-
-DB.prototype.update = function(definition) {
-	const sets = Object.keys(definition).reduce((acc, key) => {
-		acc.push('`' + key + '`= ?');
-		this._sql_params.push(definition[key]);
-		return acc;
-	}, []).join(', ');
-
-	const limit = this._createLimit();
-
-	let wheres = this._createWheres();
-	wheres = wheres ? `WHERE ${wheres}` : '';
-
-	const sql = `UPDATE \`${ this._table_name }\` SET ${ sets } ${wheres} ${limit}`;
-	return connector.query(sql, this._sql_params);
-}
-
-DB.prototype.insert = function(definition) {
-	if (typeof definition === 'object' && definition !== null) {
-		const fields_list = create_fields_list(Object.keys(definition), this._table_name);
-		this._sql_params = Object.values(definition)
-		const questions = Array(this._sql_params.length).fill('?').join(',');
-
-		const sql = `INSERT INTO \`${ this._table_name }\` (${ fields_list }) VALUES (${ questions })`;
-		return connector.query(sql, this._sql_params);
-	}
-
-}
-
-
-DB.prototype.delete = function() {
-	let wheres = this._createWheres();
-	const limit = this._createLimit();
-
-	wheres = wheres ? ` WHERE ${wheres}` : '';
-
-	const sql = `DELETE FROM \`${ this._table_name }\` ${wheres} ${limit}`;
-	return connector.query(sql, this._sql_params);
+DB.prototype.C = function () {
+    return connector;
 }
 
 
 
 
 
-DB.prototype.fields = function(fields = null) {
+DB.prototype.strict = function () {
+    this._is_loose = false;
+    return this;
+}
+DB.prototype.cols = function (...args) {
+    const cols = args.length === 1 ? args[0] : args;
 
-	if (fields === '' || fields === null || fields === undefined) {
-		this._fields = '`' + this._table_name + '`.*';
-		return this;
-	}
+    if (cols === '' || cols === '*' || cols === null || cols === undefined) {
+        this._select_all = true;
+        this._cols = null;
+        return this;
+    }
 
-	if (Array.isArray(fields)) {
-		this._fields = create_fields_list(fields, this._table_name);
-		return this;
-	}
+    this._select_all = false;
 
-	this._fields = fields;
-	return this;
+    if (typeof cols === 'string') {
+        this._cols = commaStringToArray(cols);
+        return this;
+    }
+
+    if (Array.isArray(cols)) {
+        this._cols = cols;
+        return this;
+    }
+
+    throw new Error('Only string and array are supported for column selection');
+}
+DB.prototype.startAt = DB.prototype.offset = function (at) {
+    this._start_at = at;
+    return this;
+}
+DB.prototype.limit = function (limit) {
+    this._limit = limit;
+    return this;
+}
+DB.prototype.orderBy = function (col, way = null) {
+    this._order_col = col;
+    if (way) this._order_way = way;
+    return this;
+}
+DB.prototype.groupBy = function (...args) {
+    const cols = args.length === 1 ? args[0] : args;
+    if (typeof cols == 'string') {
+        // 'customer_id, date_id'
+        this._groupBy = commaStringToArray(cols);
+        return this;
+    }
+    if (Array.isArray(cols)) {
+        this._groupBy = cols;
+        return this;
+    }
+    throw new Error('GROUP BY expects either a string or an array');
+}
+DB.prototype.having = function (...args) {
+    let [c, e, v] = [...args, null, null];
+    if (e === null) {
+        e = '';
+        v = '';
+    }
+    if (v === null) {
+        [v, e] = [e, '='];
+    }
+    this._having = [c, e, v];
+    return this;
 }
 
 
 
-function create_fields_list(fields, table_name) {
-	return fields.reduce((acc, field) => {
-		acc.push( field.indexOf('.') > -1
-		   ? field
-		   : '`' + table_name + '`.`' + field + '`'
-		);
-		return acc;
-	}, []).join(',');
+DB.prototype.where = function (col, mod = null, val = null) {
+    this.W('AND', col, mod, val);
+    return this;
 }
+DB.prototype.orWhere = function (col, mod = null, val = null) {
+    this.W('OR', col, mod, val);
+    return this;
+}
+DB.prototype.whereIn = function (col, arr = []) {
+    this.W('AND', col, 'IN', arr);
+    return this;
+}
+DB.prototype.orWhereIn = function (col, arr = []) {
+    this.W('OR', col, 'IN', arr);
+    return this;
+}
+DB.prototype.whereLike = function (col, arr = []) {
+    this.W('AND', col, ' LIKE ', arr);
+    return this;
+}
+DB.prototype.orWhereLike = function (col, arr = []) {
+    this.W('OR', col, ' LIKE ', arr);
+    return this;
+}
+DB.prototype.whereNotLike = function (col, arr = []) {
+    this.W('AND', col, ' NOT LIKE ', arr);
+    return this;
+}
+DB.prototype.orWhereNotLike = function (col, arr = []) {
+    this.W('OR', col, ' NOT LIKE ', arr);
+    return this;
+}
+DB.prototype.whereNotIn = function (col, arr = []) {
+    this.W('AND', col, 'NOT IN', arr);
+    return this;
+}
+DB.prototype.orWhereNotIn = function (col, arr = []) {
+    this.W('OR', col, 'NOT IN', arr);
+    return this;
+}
+
+
+DB.prototype.join = function (table, jointext, how = 'INNER') {
+    this._joins.push(`${how} JOIN ${table} ${jointext}`);
+    return this;
+}
+DB.prototype.leftJoin = function (table, jointext) {
+    this._joins.push(`LEFT JOIN ${table} ${jointext}`);
+    return this;
+}
+DB.prototype.rightJoin = function (table, jointext) {
+    this._joins.push(`RIGHT JOIN ${table} ${jointext}`);
+    return this;
+}
+
+
+
+DB.prototype._getSelect = function () {
+    let S_Cols, S_Table, S_Where, S_Joins, S_Order, S_Limit, S_Group, S_Havin;
+
+    if (this._is_loose) {
+        S_Cols = this._select_all ? '*' : this._cols.join(',');
+        S_Table = this._table;
+        S_Joins = this._createJoins();
+        S_Where = this._createWheres();
+        S_Group = this._groupBy ? 'GROUP BY ' + (this._groupBy.join(',')) : null;
+        S_Havin = (this._groupBy && this._having) ? 'HAVING ' + this._having.join() : null;
+        S_Order = this._createOrderBy(this._order_col);
+        S_Limit = this._createLimit();
+    } else {
+        S_Cols = this._select_all ? '*' : this._createSelectCols();
+        S_Table = this.C().grammar.quote(this._table);
+        S_Joins = this._createJoins();
+        S_Where = this._createWheres();
+        S_Group = this._groupBy ? 'GROUP BY ' + (this._groupBy.map(this._addTableNameToCol, this).join(',')) : null;
+        S_Havin = (this._groupBy && this._having) ? 'HAVING ' + this._having.join('') : null;
+        S_Order = this._createOrderBy(this._addTableNameToCol(this._order_col));
+        S_Limit = this._createLimit();
+    }
+
+    const sql = ["SELECT", S_Cols, 'FROM', S_Table, S_Joins, S_Where, S_Group, S_Havin, S_Order, S_Limit].filter(x => x!== null).join(' ');
+    return [sql, this._sql_params];
+}
+
+DB.prototype._createSelectCols = function () {
+    const cols = this._cols.map(this._addTableNameToCol, this)
+    return cols.join(',');
+}
+DB.prototype._createWheres = function (data = null) {
+    if (!data) data = this._data.data;
+    if (!data.data) return '';
+
+    let allParts = [];
+    if (data.data.length > 0) {
+        allParts.push('(');
+    }
+
+    data.data.map((spec, index) => {
+            if (Array.isArray(spec)) {
+                let [col, term, val, join] = spec;
+                if (index > 0) allParts.push(` ${join} `);
+
+                col = this._is_loose ? col : this._addTableNameToCol(col);
+
+                if (term === 'IN' || term === 'NOT IN') {
+                    if (typeof val === 'string') {
+                        this._sql_params.push(val);
+                        allParts.push(`${col} ${term} (?)`);
+                        return;
+                    }
+
+                    if (Array.isArray(val)) {
+                        this._sql_params = [...this._sql_params, [...val].join(',')];
+                        allParts.push(`${col} ${term} (?)`);
+                        return;
+                    }
+
+                    if (typeof val === 'object' && val !== null) {
+                        // subquery
+                        let [sql, params] = val._getSelect();
+                        this._sql_params = [...this._sql_params, ...params];
+                        allParts.push(`${col} ${term}(${sql})`);
+                        return;
+                    }
+                }
+
+
+                if (val !== null) this._sql_params = [...this._sql_params, val];
+                allParts.push(col + term + '?')
+                return;
+            }
+
+            if (typeof spec === 'object' && spec !== null) {
+                allParts.push(` ${spec.join_term} ` + this._createWheres(spec));
+                // return;
+            }
+        }
+    )
+
+    if (data.data.length > 0) {
+        allParts.push(')');
+    }
+
+    return allParts.length ? 'WHERE ' + allParts.join('') : null;
+}
+DB.prototype._createOrderBy = function (col) {
+    if (col === null) return null;
+    return `ORDER BY ${col}` + (this._order_way ? ` ${this._order_way}` : '');
+}
+DB.prototype._createJoins = function () {
+    return this._joins.join(' ');
+}
+DB.prototype._createLimit = function () {
+    if (!this._limit) return '';
+    if (this._limit) this._sql_params.push(this._limit);
+    if (this._start_at) this._sql_params.push(this._start_at);
+    return this.C().grammar.limit(this._limit, this._start_at);
+}
+
+DB.prototype._addTableNameToCol = function (col) {
+    if (col == null) return null;
+    let [t, c] = `${col}.`.split('.');
+    if (!c) {
+        c = t;
+        t = this._table;
+    }
+    return this.C().grammar.quote(t) + '.' + this.C().grammar.quote(c);
+}
+
+
+
+
+DB.prototype.select = function (...args) {
+    if (args.length) {
+        this.cols(args);
+    }
+    const [sql, params] = this._getSelect();
+    return connector.insert(sql, params);
+}
+
+DB.prototype.insert = function (definition) {
+}
+
+DB.prototype.update = function (definition) {
+}
+
+DB.prototype.delete = function () {
+}
+
 
 export default DB;
