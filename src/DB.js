@@ -39,9 +39,6 @@ DB.prototype.C = function () {
 }
 
 
-
-
-
 DB.prototype.strict = function () {
     this._is_loose = false;
     return this;
@@ -109,7 +106,6 @@ DB.prototype.having = function (...args) {
 }
 
 
-
 DB.prototype.where = function (col, mod = null, val = null) {
     this.W('AND', col, mod, val);
     return this;
@@ -166,7 +162,6 @@ DB.prototype.rightJoin = function (table, jointext) {
 }
 
 
-
 DB.prototype._getSelect = function () {
     let S_Cols, S_Table, S_Where, S_Joins, S_Order, S_Limit, S_Group, S_Havin;
 
@@ -190,7 +185,7 @@ DB.prototype._getSelect = function () {
         S_Limit = this._createLimit();
     }
 
-    const sql = ["SELECT", S_Cols, 'FROM', S_Table, S_Joins, S_Where, S_Group, S_Havin, S_Order, S_Limit].filter(x => x!== null).join(' ');
+    const sql = ["SELECT", S_Cols, 'FROM', S_Table, S_Joins, S_Where, S_Group, S_Havin, S_Order, S_Limit].filter(x => x).join(' ');
     return [sql, this._sql_params];
 }
 
@@ -198,69 +193,65 @@ DB.prototype._createSelectCols = function () {
     const cols = this._cols.map(this._addTableNameToCol, this)
     return cols.join(',');
 }
-DB.prototype._createWheres = function (data = null) {
+DB.prototype._createWheres = function (data = null, is_sub=false) {
     if (!data) data = this._data.data;
     if (!data.data) return '';
 
     let allParts = [];
-    if (data.data.length > 0) {
-        allParts.push('(');
-    }
 
     data.data.map((spec, index) => {
-            if (Array.isArray(spec)) {
-                let [col, term, val, join] = spec;
-                if (index > 0) allParts.push(` ${join} `);
+        if (Array.isArray(spec)) {
+            let [col, term, val, join] = spec;
+            if (index > 0) allParts.push(` ${join} `);
 
-                col = this._is_loose ? col : this._addTableNameToCol(col);
+            col = this._is_loose ? col : this._addTableNameToCol(col);
 
-                if (term === 'IN' || term === 'NOT IN') {
-                    if (typeof val === 'string') {
-                        this._sql_params.push(val);
-                        allParts.push(`${col} ${term} (?)`);
-                        return;
-                    }
-
-                    if (Array.isArray(val)) {
-                        this._sql_params = [...this._sql_params, [...val].join(',')];
-                        allParts.push(`${col} ${term} (?)`);
-                        return;
-                    }
-
-                    if (typeof val === 'object' && val !== null) {
-                        // subquery
-                        let [sql, params] = val._getSelect();
-                        this._sql_params = [...this._sql_params, ...params];
-                        allParts.push(`${col} ${term}(${sql})`);
-                        return;
-                    }
+            if (term === 'IN' || term === 'NOT IN') {
+                if (typeof val === 'string') {
+                    this._sql_params.push(val);
+                    allParts.push(`${col} ${term} (?)`);
+                    return;
                 }
 
+                if (Array.isArray(val)) {
+                    this._sql_params = [...this._sql_params, [...val].join(',')];
+                    allParts.push(`${col} ${term} (?)`);
+                    return;
+                }
 
-                if (val !== null) this._sql_params = [...this._sql_params, val];
-                allParts.push(col + term + '?')
-                return;
+                if (typeof val === 'object' && val !== null) {
+                    // subquery
+                    let [sql, params] = val._getSelect();
+                    this._sql_params = [...this._sql_params, ...params];
+                    allParts.push(`${col} ${term} (${sql})`);
+                    return;
+                }
             }
 
-            if (typeof spec === 'object' && spec !== null) {
-                allParts.push(` ${spec.join_term} ` + this._createWheres(spec));
-                // return;
-            }
+
+            if (val !== null) this._sql_params = [...this._sql_params, val];
+            allParts.push(col + term + '?')
+            return;
         }
-    )
 
-    if (data.data.length > 0) {
-        allParts.push(')');
-    }
+        if (typeof spec === 'object' && spec !== null) {
+            // subselect
+            allParts.push(` ${spec.join_term} (${this._createWheres(spec, true)})`);
+            return;
+        }
+    })
 
-    return allParts.length ? 'WHERE ' + allParts.join('') : null;
+    return allParts.length ?
+        (is_sub ? allParts.join('') : 'WHERE ' + allParts.join('')) :
+        null;
 }
+
 DB.prototype._createOrderBy = function (col) {
     if (col === null) return null;
     return `ORDER BY ${col}` + (this._order_way ? ` ${this._order_way}` : '');
 }
 DB.prototype._createJoins = function () {
-    return this._joins.join(' ');
+    return this._joins.length ? this._joins.join(' ') : null;
 }
 DB.prototype._createLimit = function () {
     if (!this._limit) return '';
@@ -278,8 +269,6 @@ DB.prototype._addTableNameToCol = function (col) {
     }
     return this.C().grammar.quote(t) + '.' + this.C().grammar.quote(c);
 }
-
-
 
 
 DB.prototype.select = function (...args) {

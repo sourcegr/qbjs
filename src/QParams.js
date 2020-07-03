@@ -42,13 +42,7 @@ QParams.prototype.parse_input_clause = function(join_term, col, mod, val) {
 			mod = '=';
 		}
 	}
-	// if (!val) {
-	// 	if (mod === null) {
-	//
-	// 	}
-	//
-	// 	mod = '=';
-	// }
+
 	this.add_data(join_term, col, mod, val);
 	return this;
 }
