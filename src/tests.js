@@ -1,10 +1,9 @@
 const dd = console.log;
-import {types, Pool} from 'pg';
+import {Pool, types} from 'pg';
 import DB from "./DB";
 import PostgressGrammar from './grammars/pgsql';
 
 types.setTypeParser(20, BigInt);
-
 
 
 const pool = new Pool({
@@ -29,22 +28,27 @@ pool.connect((err, client, release) => {
 
 
 function runTests() {
-    db.Table('tmp').insert({
-        id:1,
-        dd:null
-    }).then(function(res) {
-        dd(typeof res[0].id);
-    }).catch(err => {
-        dd('ERROR');
-        dd(err.stack)
-        // Object.keys(err).map(x => {
-        //     dd("== " + x + '--')
-        //     dd(err[x]);
-        // })
-    }).finally(() => {
-        dd('THISIS FIANLLY')
-        pool.end();
-    });
+    // ['one', 'two', 'three', 'four', 'five', 'six'].map((x, idx) => {
+    //     db.Table('tmp').insert({
+    //         id: (idx+1),
+    //         dd: x
+    //     })
+    // })
+    db.Table('tmp').whereNotIn('id', [1,5]).orderBy('id').startAt(2).limit(10).select()
+        .then(function(res) {
+            dd(res);
+        })
+        // .catch(err => {
+    //     dd('ERROR');
+    //     dd(err.stack)
+    //     // Object.keys(err).map(x => {
+    //     //     dd("== " + x + '--')
+    //     //     dd(err[x]);
+    //     // })
+    // }).finally(() => {
+    //     dd('THISIS FIANLLY')
+    //     pool.end();
+    // });
 
 }
 

@@ -20,7 +20,6 @@ function RAW(v) {
 function DB(grammar) {
     this.grammar = grammar;
 
-    this.q = 1;
     this._select_all = true;
     this._is_loose = true;
 
@@ -35,8 +34,12 @@ function DB(grammar) {
     this._groupBy = null;
     this._having = null;
     this._start_at = 0;
+
     this._data = new QParams();
     this.W = this._data.parse_input_clause.bind(this._data);
+
+    this.q = 1;
+    this.CQ = this.grammar.q;
 }
 
 DB.RAW = function (v) {
@@ -230,13 +233,14 @@ DB.prototype._createWheres = function (data = null, is_sub = false) {
             if (term === 'IN' || term === 'NOT IN') {
                 if (typeof val === 'string') {
                     this._sql_params.push(val);
-                    allParts.push(`${col} ${term} ($${this.q++})`);
+                    allParts.push(`${col} ${term} (${this.CQ()})`);
                     return;
                 }
 
                 if (Array.isArray(val)) {
-                    this._sql_params = [...this._sql_params, [...val].join(',')];
-                    allParts.push(`${col} ${term} ($${this.q++})`);
+                    this._sql_params = [...this._sql_params, ...val];
+                    let qstring = val.map(x => `${this.CQ()}`).join(',');
+                    allParts.push(`${col} ${term} (${qstring})`);
                     return;
                 }
 
@@ -255,7 +259,7 @@ DB.prototype._createWheres = function (data = null, is_sub = false) {
                     return;
                 }
                 this._sql_params = [...this._sql_params, val];
-                allParts.push(col + term + `$${this.q++}`)
+                allParts.push(col + term + this.CQ())
                 return;
             }
 
@@ -288,7 +292,7 @@ DB.prototype._createLimit = function () {
     if (!this._limit) return '';
     if (this._limit) this._sql_params.push(this._limit);
     if (this._start_at) this._sql_params.push(this._start_at);
-    return this.grammar.limit(this._limit, this._start_at);
+    return this.grammar.createLimit(this);
 }
 
 DB.prototype._addTableNameToCol = function (col) {
@@ -325,7 +329,7 @@ DB.prototype.insert = function (def) {
         if (c instanceof RAW) {
             qm = c.value;
         } else {
-            qm = `$${this.q++}`;
+            qm = this.CQ();
             this._sql_params.push(c);
         }
         return `${qm}`;
@@ -355,7 +359,7 @@ DB.prototype.update = function (def) {
         if (v instanceof RAW) {
             qm = v.value;
         } else {
-            qm = `$${this.q++}`;
+            qm = this.CQ();
             this._sql_params.push(v);
         }
         return `${qFunction(c)}=${qm}`;
