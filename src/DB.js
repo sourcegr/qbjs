@@ -212,7 +212,6 @@ DB.prototype._getSelect = function () {
     const sql = ["SELECT", S_Cols, 'FROM', S_Table, S_Joins, S_Where, S_Group, S_Havin, S_Order, S_Limit].filter(x => x).join(' ');
     return [sql, this._sql_params];
 }
-
 DB.prototype._createSelectCols = function () {
     const cols = this._cols.map(this._addTableNameToCol, this)
     return cols.join(',');
@@ -339,7 +338,6 @@ DB.prototype.insert = function (def) {
     return this.grammar.insert(sql, this._sql_params);
 }
 
-
 DB.prototype.update = function (def) {
     if (!(typeof def === 'object' && def !== null)) {
         throw new Error("UPDATE requires an object");
@@ -365,7 +363,6 @@ DB.prototype.update = function (def) {
         return `${qFunction(c)}=${qm}`;
     }).join(',');
 
-
     const sql = [
         `UPDATE ${table} SET ${cols_sql}`,
         this._createWheres()
@@ -375,6 +372,14 @@ DB.prototype.update = function (def) {
 }
 
 DB.prototype.delete = function () {
+    let table = this._is_loose ? this._table : this.grammar.quote(this._table);
+
+    const sql = [
+        `DELETE FROM ${table}`,
+        this._createWheres()
+    ].filter(x => x).join(' ');
+
+    return this.grammar.delete(sql, this._sql_params);
 }
 
 
