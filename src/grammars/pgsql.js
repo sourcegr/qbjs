@@ -1,28 +1,40 @@
-const _select = async function(sql, params) {
-    return [sql, params, 'select'];
+const Grammar = function (connection) {
+    this.connection = connection;
+}
+Grammar.prototype.quote = function (str) {
+    return `"${str}"`;
+}
+Grammar.prototype.limit = function (startat) {
+    return `LIMIT ? ${startat > 0 ? 'OFFSET ?' : ``}`;
+}
+
+Grammar.prototype.setConnection = function (connection) {
+    this.connection = connection;
+}
+
+Grammar.prototype.select = function (sql, params) {
+    return new Promise((resolve, reject) => {
+        this.connection.query(sql, params, (err, res) => {
+            return err ? reject(err) : resolve(res.rows);
+        });
+    });
 };
 
-const _insert = async function(sql, params) {
-    return [sql + " RETURNING ALL", params, 'insert'];
+Grammar.prototype.insert = function (sql, params) {
+    console.log(sql+ " RETURNING *" , params, 'insert');
+    return new Promise((resolve, reject) => {
+        this.connection.query(sql+ " RETURNING *", params, (err, res) => {
+            return err ? reject(err) : resolve(res.rows);
+        });
+    });
 };
 
-const _update = async function(sql, params) {
+Grammar.prototype.update = function (sql, params) {
     return [sql, params, 'update'];
 };
 
-const _delete = async function(sql, params) {
+Grammar.prototype.delete = function (sql, params) {
     return [sql, params, 'delete'];
 };
 
-const quote = str => `"${str}"`;
-const limit = (startat, count) => `LIMIT ? ${startat > 0 ? 'OFFSET ?' : ``}`;
-
-export default {
-    select: _select,
-    insert: _insert,
-    update: _update,
-    delete: _delete,
-    grammar: {
-        quote, limit
-    }
-};
+export default Grammar;

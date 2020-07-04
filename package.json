@@ -19,7 +19,8 @@
   "homepage": "https://github.com/sourcegr/qbjs#readme",
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-preset-es2015-node": "^6.1.1"
+    "babel-preset-es2015-node": "^6.1.1",
+    "pg": "^8.2.1"
   },
   "dependencies": {
     "source-map-support": "^0.5.19"

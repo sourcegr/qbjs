@@ -1,14 +1,25 @@
 import QParams from './QParams';
 import {commaStringToArray} from './lib/index';
 
-const dd = console.log;
-let connector = null;
+function DSQB(pool = null, grammar = null) {
+    this.grammar = grammar;
+    this.grammar.setConnection(pool);
+    return {
+        Table(table) {
+            let db = new DB(grammar);
+            db._table = table;
+            return db;
+        }
+    }
+}
 
 function RAW(v) {
     this.value = v;
 }
 
-function DB() {
+function DB(grammar) {
+    this.grammar = grammar;
+
     this.q = 1;
     this._select_all = true;
     this._is_loose = true;
@@ -28,25 +39,9 @@ function DB() {
     this.W = this._data.parse_input_clause.bind(this._data);
 }
 
-DB.connect = function (c) {
-    connector = c;
-}
-
-DB.Table = function (table) {
-    if (!connector) throw new Error('No connector specified');
-    const db = new DB();
-    db._table = table;
-    return db;
-}
-
 DB.RAW = function (v) {
     return new RAW(v);
 }
-
-DB.prototype.C = function () {
-    return connector;
-}
-
 
 DB.prototype.strict = function () {
     this._is_loose = false;
@@ -202,7 +197,7 @@ DB.prototype._getSelect = function () {
         S_Limit = this._createLimit();
     } else {
         S_Cols = this._select_all ? '*' : this._createSelectCols();
-        S_Table = this.C().grammar.quote(this._table);
+        S_Table = this.grammar.quote(this._table);
         S_Joins = this._createJoins();
         S_Where = this._createWheres();
         S_Group = this._groupBy ? 'GROUP BY ' + (this._groupBy.map(this._addTableNameToCol, this).join(',')) : null;
@@ -293,7 +288,7 @@ DB.prototype._createLimit = function () {
     if (!this._limit) return '';
     if (this._limit) this._sql_params.push(this._limit);
     if (this._start_at) this._sql_params.push(this._start_at);
-    return this.C().grammar.limit(this._limit, this._start_at);
+    return this.grammar.limit(this._limit, this._start_at);
 }
 
 DB.prototype._addTableNameToCol = function (col) {
@@ -303,7 +298,7 @@ DB.prototype._addTableNameToCol = function (col) {
         c = t;
         t = this._table;
     }
-    return this.C().grammar.quote(t) + '.' + this.C().grammar.quote(c);
+    return this.grammar.quote(t) + '.' + this.grammar.quote(c);
 }
 
 
@@ -312,7 +307,7 @@ DB.prototype.select = function (...args) {
         this.cols(...args);
     }
     const [sql, params] = this._getSelect();
-    return connector.select(sql, params);
+    return this.grammar.select(sql, params);
 }
 
 DB.prototype.insert = function (def) {
@@ -320,7 +315,7 @@ DB.prototype.insert = function (def) {
         throw new Error("INSERT requires an object");
     }
 
-    const cols = this._is_loose ? Object.keys(def) : Object.keys(def).map(this.C().grammar.quote);
+    const cols = this._is_loose ? Object.keys(def) : Object.keys(def).map(this.grammar.quote);
     if (!cols.length) {
         throw new Error("INSERT Definition should not be an ampty object");
     }
@@ -336,8 +331,8 @@ DB.prototype.insert = function (def) {
         return `${qm}`;
     }).join(',');
 
-    const sql = `INSERT INTO ${this._is_loose ? this._table : this.C().grammar.quote(this._table)} (${cols.join(',')}) VALUES (${qs})`;
-    return connector.insert(sql, this._sql_params);
+    const sql = `INSERT INTO ${this._is_loose ? this._table : this.grammar.quote(this._table)} (${cols.join(',')}) VALUES (${qs})`;
+    return this.grammar.insert(sql, this._sql_params);
 }
 
 
@@ -351,7 +346,7 @@ DB.prototype.update = function (def) {
         throw new Error("INSERT Definition should not be an ampty object");
     }
 
-    const qFunction = this._is_loose ? x => x : this.C().grammar.quote;
+    const qFunction = this._is_loose ? x => x : this.grammar.quote;
 
     let table = qFunction(this._table);
     let cols_sql = keys.map(c => {
@@ -372,11 +367,11 @@ DB.prototype.update = function (def) {
         this._createWheres()
     ].filter(x => x).join(' ');
 
-    return connector.update(sql, this._sql_params);
+    return this.grammar.update(sql, this._sql_params);
 }
 
 DB.prototype.delete = function () {
 }
 
 
-export default DB;
+export default DSQB;

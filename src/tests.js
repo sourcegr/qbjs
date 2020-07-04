@@ -1,5 +1,53 @@
-import DB from './index';
-import ConsoleGrammar from './grammars/console';
+const dd = console.log;
+import {types, Pool} from 'pg';
+import DB from "./DB";
+import PostgressGrammar from './grammars/pgsql';
+
+types.setTypeParser(20, BigInt);
+
+
+
+const pool = new Pool({
+    user: 'default',
+    host: 'localhost',
+    database: 'root',
+    password: 'secret',
+    port: 5432,
+});
+
+const pgGrammar = new PostgressGrammar();
+const db = new DB(pool, pgGrammar);
+
+
+pool.connect((err, client, release) => {
+    if (err) {
+        return console.error('Error acquiring client', err.stack)
+    }
+
+    runTests();
+})
+
+
+function runTests() {
+    db.Table('tmp').insert({
+        id:1,
+        dd:null
+    }).then(function(res) {
+        dd(typeof res[0].id);
+    }).catch(err => {
+        dd('ERROR');
+        dd(err.stack)
+        // Object.keys(err).map(x => {
+        //     dd("== " + x + '--')
+        //     dd(err[x]);
+        // })
+    }).finally(() => {
+        dd('THISIS FIANLLY')
+        pool.end();
+    });
+
+}
+
 
 DB.connect(ConsoleGrammar);
 
