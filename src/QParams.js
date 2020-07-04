@@ -34,8 +34,8 @@ QParams.prototype.parse_input_clause = function(join_term, col, mod, val) {
 	}
 
 	if (mod === null && val === null) {
-		mod = ' IS NOT NULL'
-		val = null;
+		val = 'IS NOT NULL'
+		mod = null;
 	} else {
 		if (val === null) {
 			val = mod;

@@ -1,10 +1,15 @@
 import QParams from './QParams';
 import {commaStringToArray} from './lib/index';
 
+const dd = console.log;
 let connector = null;
 
+function RAW(v) {
+    this.value = v;
+}
 
 function DB() {
+    this.q = 1;
     this._select_all = true;
     this._is_loose = true;
 
@@ -34,6 +39,10 @@ DB.Table = function (table) {
     return db;
 }
 
+DB.RAW = function (v) {
+    return new RAW(v);
+}
+
 DB.prototype.C = function () {
     return connector;
 }
@@ -44,8 +53,10 @@ DB.prototype.strict = function () {
     return this;
 }
 DB.prototype.cols = function (...args) {
+    // dd(args)
+    // dd(args.length)
     const cols = args.length === 1 ? args[0] : args;
-
+// dd(cols)
     if (cols === '' || cols === '*' || cols === null || cols === undefined) {
         this._select_all = true;
         this._cols = null;
@@ -146,7 +157,22 @@ DB.prototype.orWhereNotIn = function (col, arr = []) {
     this.W('OR', col, 'NOT IN', arr);
     return this;
 }
-
+DB.prototype.whereNull = function (col) {
+    this.W('AND', col, null, 'IS NULL');
+    return this;
+}
+DB.prototype.orWhereNull = function (col) {
+    this.W('OR', col, null, 'IS NULL');
+    return this;
+}
+DB.prototype.whereNotNull = function (col) {
+    this.W('AND', col, null, 'IS NOT NULL');
+    return this;
+}
+DB.prototype.orWhereNotNull = function (col) {
+    this.W('OR', col, null, 'IS NOT NULL');
+    return this;
+}
 
 DB.prototype.join = function (table, jointext, how = 'INNER') {
     this._joins.push(`${how} JOIN ${table} ${jointext}`);
@@ -193,7 +219,7 @@ DB.prototype._createSelectCols = function () {
     const cols = this._cols.map(this._addTableNameToCol, this)
     return cols.join(',');
 }
-DB.prototype._createWheres = function (data = null, is_sub=false) {
+DB.prototype._createWheres = function (data = null, is_sub = false) {
     if (!data) data = this._data.data;
     if (!data.data) return '';
 
@@ -209,13 +235,13 @@ DB.prototype._createWheres = function (data = null, is_sub=false) {
             if (term === 'IN' || term === 'NOT IN') {
                 if (typeof val === 'string') {
                     this._sql_params.push(val);
-                    allParts.push(`${col} ${term} (?)`);
+                    allParts.push(`${col} ${term} ($${this.q++})`);
                     return;
                 }
 
                 if (Array.isArray(val)) {
                     this._sql_params = [...this._sql_params, [...val].join(',')];
-                    allParts.push(`${col} ${term} (?)`);
+                    allParts.push(`${col} ${term} ($${this.q++})`);
                     return;
                 }
 
@@ -228,10 +254,20 @@ DB.prototype._createWheres = function (data = null, is_sub=false) {
                 }
             }
 
+            if (term !== null) {
+                if (val instanceof RAW) {
+                    allParts.push(`${col} ${term} ${val.value}`);
+                    return;
+                }
+                this._sql_params = [...this._sql_params, val];
+                allParts.push(col + term + `$${this.q++}`)
+                return;
+            }
 
-            if (val !== null) this._sql_params = [...this._sql_params, val];
-            allParts.push(col + term + '?')
-            return;
+            if (val === 'IS NULL' || val === 'IS NOT NULL') {
+                allParts.push(`${col} ${val}`);
+                return;
+            }
         }
 
         if (typeof spec === 'object' && spec !== null) {
@@ -273,30 +309,70 @@ DB.prototype._addTableNameToCol = function (col) {
 
 DB.prototype.select = function (...args) {
     if (args.length) {
-        this.cols(args);
+        this.cols(...args);
     }
     const [sql, params] = this._getSelect();
     return connector.select(sql, params);
 }
 
 DB.prototype.insert = function (def) {
-	if (!(typeof def === 'object' && def !== null)) {
-        throw new Error("INSERT required an object");
+    if (!(typeof def === 'object' && def !== null)) {
+        throw new Error("INSERT requires an object");
     }
 
-	const cols = this._is_loose ? Object.keys(def) : Object.keys(def).map(this.C().grammar.quote);
-	if (!cols.length) {
-	    throw new Error("INSERT Definition should not be an ampty object");
+    const cols = this._is_loose ? Object.keys(def) : Object.keys(def).map(this.C().grammar.quote);
+    if (!cols.length) {
+        throw new Error("INSERT Definition should not be an ampty object");
     }
 
-	this._sql_params = Object.values(def);
-	const qs = Array(this._sql_params.length).fill('?').join(',');
+    const qs = Object.values(def).map(c => {
+        let qm;
+        if (c instanceof RAW) {
+            qm = c.value;
+        } else {
+            qm = `$${this.q++}`;
+            this._sql_params.push(c);
+        }
+        return `${qm}`;
+    }).join(',');
 
-	const sql = `INSERT INTO ${ this._is_loose ? this._table : this.C().grammar.quote(this._table) } (${cols}) VALUES (${qs})`;
-	return connector.insert(sql, this._sql_params);
+    const sql = `INSERT INTO ${this._is_loose ? this._table : this.C().grammar.quote(this._table)} (${cols.join(',')}) VALUES (${qs})`;
+    return connector.insert(sql, this._sql_params);
 }
 
-DB.prototype.update = function (definition) {
+
+DB.prototype.update = function (def) {
+    if (!(typeof def === 'object' && def !== null)) {
+        throw new Error("UPDATE requires an object");
+    }
+
+    let keys = Object.keys(def);
+    if (!keys.length) {
+        throw new Error("INSERT Definition should not be an ampty object");
+    }
+
+    const qFunction = this._is_loose ? x => x : this.C().grammar.quote;
+
+    let table = qFunction(this._table);
+    let cols_sql = keys.map(c => {
+        let qm;
+        let v = def[c];
+        if (v instanceof RAW) {
+            qm = v.value;
+        } else {
+            qm = `$${this.q++}`;
+            this._sql_params.push(v);
+        }
+        return `${qFunction(c)}=${qm}`;
+    }).join(',');
+
+
+    const sql = [
+        `UPDATE ${table} SET ${cols_sql}`,
+        this._createWheres()
+    ].filter(x => x).join(' ');
+
+    return connector.update(sql, this._sql_params);
 }
 
 DB.prototype.delete = function () {
