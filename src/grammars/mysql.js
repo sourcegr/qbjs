@@ -1,18 +1,16 @@
 const Grammar = function (connection) {
-    this.questions = 1;
     this.connection = connection;
 }
 Grammar.prototype.placeholder = function(){
-    return `$${this.questions++}`;
+    return `?`;
 }
 Grammar.prototype.quote = function (str) {
-    return `"${str}"`;
+    return `\`${str}\``;
 }
 Grammar.prototype.createLimit = function (start_at) {
-    return `LIMIT ${this.placeholder()} ${start_at > 0 ? `OFFSET ${this.placeholder()}` : ``}`;
+    return `LIMIT ${start_at > 0 ? `${this.placeholder()}, ` : ``} ${this.placeholder()} `;
 }
 Grammar.prototype.select = function (sql, params) {
-    console.log(sql, params, 'SELECT');
     return new Promise((resolve, reject) => {
         this.connection.query(sql, params, (err, res) => {
             return err ? reject(err) : resolve(res.rows);
@@ -21,9 +19,8 @@ Grammar.prototype.select = function (sql, params) {
 };
 
 Grammar.prototype.insert = function (sql, params) {
-    console.log(sql+ " RETURNING *" , params, 'INSERT');
     return new Promise((resolve, reject) => {
-        this.connection.query(sql+ " RETURNING *", params, (err, res) => {
+        this.connection.query(sql, params, (err, res) => {
             return err ? reject(err) : resolve(res.rows);
         });
     });

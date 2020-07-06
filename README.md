@@ -12,9 +12,9 @@ DB.Table('posts').select();
 SELECT Some
 ```javascript
 DB.Table('posts').select('id, name');
-// SELECT * FROM posts
+// SELECT id, name FROM posts
 
-// the above can also be written with any of these methods: 
+// the above can also be written in any of these ways: 
 DB.Table('posts').select(['id', 'name']);
 DB.Table('posts').fields('id, name').select();
 DB.Table('posts').fields(['id', 'name']).select(); 
@@ -178,7 +178,7 @@ DB.Table('users')
             //notice, you should not specify select() here! 
     }).select('hashed_password');
 ```
-`SELECT hashed_password FROM users WHERE email=? AND (is_admin=true OR is_super_admin=true)`
+`SELECT hashed_password FROM users WHERE email=? AND (is_admin='t' OR is_super_admin='t')`
 
 
 **subselects**
@@ -195,17 +195,3 @@ DB.Table('users')
 ```
 `DELETE FROM users WHERE id IN (SELECT id FROM users ORDER BY id DESC OFFSET 10)`
 
-
-
-**whereInSpec**
-|   |      |   |   |   |
-|---|------|---|---|---|
-| column               | `whereIn(id)` <br>`id IS NOT NULL`     | string | 
-| column, string       | `where(id, 3)` <br>`id=3`            | string, selectorValue |
-| column, eq, value    | `where(id, '>', 3)`<br>`id>3`        | string, string, selectorValue |
-| parentntesized query | `orWhere(function(q) {`<br>`q.where('id', 4).orWhere('is_admin', true);`<br><br>`OR (id=4 OR is_admin=true)`| function | 
-
-
-
-| subquery             | `where(DB.Table('posts').cols('id').where({user_id:1}))`<br>AND (
- |
