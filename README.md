@@ -74,12 +74,15 @@ Creates a Query builder associated with the `tablename` table
 
 **whereSpec**
 
-|   |      |   |
+| parameter  | example | result |
 |---|------|---|
 | column               | `where(id)`| `AND id IS NOT NULL` |
 | column, primitive    | `where(id, 3).where('name', 'John')` | `AND id=3 AND name='John'`|
 | column, eq, value    | `where(group, '=', 1).orWhere('age', '>', 18)`| `AND group=1 OR age>18` |
-| parentntesized query | `orWhere(function(q) {`<br>`q.where('group', 4)`<br>`.orWhere('is_admin', true);`<br>`})` | `OR (id=4 OR is_admin=true)` | 
+| parentntesized query | ```javascript
+orWhere(function(q) {
+  q.where('group', 4).orWhere('is_admin', true);
+})``` | `OR (id=4 OR is_admin=true)` | 
 
 **whereInSpec**
 |   |      |   |   |   |
