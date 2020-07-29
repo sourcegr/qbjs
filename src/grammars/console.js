@@ -21,7 +21,7 @@ const _delete = async function(sql, params) {
 const quote = str => `"${str}"`;
 const limit = (startat, count) => `LIMIT ? ${ startat > 0 ? 'OFFSET ?' : `` }`;
 
-export default {
+module.exports = {
     select: _select,
     insert: _insert,
     update: _update,

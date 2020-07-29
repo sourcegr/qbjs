@@ -3,6 +3,6 @@ function commaStringToArray(str) {
 }
 
 
-export {
+module.exports = {
     commaStringToArray
-}
+};

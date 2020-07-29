@@ -1,4 +1,4 @@
-import QB from './QBuilder';
+const QB = require('./QBuilder');
 
 let pool = null;
 let grammar = null;
@@ -14,4 +14,4 @@ function DSQB($pool = null, $grammar = null) {
 }
 
 
-export default DSQB;
+module.exports = DSQB;

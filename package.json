@@ -2,10 +2,9 @@
   "name": "qbjs",
   "version": "0.5.0",
   "description": "A dead simple query builder for javascript",
-  "main": "lib/index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "npm run build && clear && node lib/tests.js",
-    "build": "babel --presets es2015-node -d lib/ src"
+    "test": "node tests/test.js"
   },
   "repository": {
     "type": "git",
@@ -18,8 +17,6 @@
   },
   "homepage": "https://github.com/sourcegr/qbjs#readme",
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-preset-es2015-node": "^6.1.1",
     "pg": "^8.2.1"
   },
   "dependencies": {}

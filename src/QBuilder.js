@@ -1,12 +1,12 @@
-import QParams from './QParams';
-import {commaStringToArray} from './lib/index';
+const QParams = require('./QParams');
+const { commaStringToArray } = require('./lib/index');
 
 function RAW(v) {
     this.value = v;
 }
 
 function QB(pool, grammar, table) {
-    this.grammar = grammar.setConnection(pool);
+    this.grammar = new grammar(pool);
     this._table = table;
 
     this._select_all = true;
@@ -368,4 +368,5 @@ QB.prototype.delete = function () {
     return this.grammar.delete(sql, this._sql_params);
 }
 
-export default QB;
+
+module.exports = QB;

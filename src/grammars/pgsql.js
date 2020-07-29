@@ -37,8 +37,4 @@ Grammar.prototype.delete = function (sql, params) {
     return [sql, params, 'delete'];
 };
 
-Grammar.setConnection = function (connection) {
-    return new Grammar(connection);
-}
-
-export default Grammar;
+module.exports = Grammar;

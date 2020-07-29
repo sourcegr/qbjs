@@ -38,4 +38,4 @@ Grammar.setConnection = function (connection) {
     return new Grammar(connection);
 }
 
-export default Grammar;
+module.exports = Grammar;
