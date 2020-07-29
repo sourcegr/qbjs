@@ -2,7 +2,7 @@
   "name": "qbjs",
   "version": "0.5.0",
   "description": "A dead simple query builder for javascript",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "npm run build && clear && node lib/tests.js",
     "build": "babel --presets es2015-node -d lib/ src"
