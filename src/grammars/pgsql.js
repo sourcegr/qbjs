@@ -30,7 +30,12 @@ Grammar.prototype.insert = function (sql, params) {
 };
 
 Grammar.prototype.update = function (sql, params) {
-    return [sql, params, 'update'];
+    console.log(sql, params, 'UPDATE');
+    return new Promise((resolve, reject) => {
+        this.connection.query(sql, params, (err, res) => {
+            return err ? reject(err) : resolve(res.rowCount);
+        });
+    });
 };
 
 Grammar.prototype.delete = function (sql, params) {
