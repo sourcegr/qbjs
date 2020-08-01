@@ -9,7 +9,8 @@ function DSQB($pool = null, $grammar = null) {
     return {
         Table(table) {
             return new QB(pool, grammar, table);
-        }
+        },
+        RAW: QB.RAW
     }
 }
 
