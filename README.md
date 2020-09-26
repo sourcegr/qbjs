@@ -59,8 +59,8 @@ API
 Creates a Query builder associated with the `tablename` table. After that, you can chain the quey builder with any of these methods, to construct your query.
 
 
-### query contruction methods
-use these methods to contruct your queries.
+### query construction methods
+use these methods to construct your queries.
 
 |   |      |   |
 |---|------|---|
@@ -79,11 +79,11 @@ use these methods to contruct your queries.
 | .whereNotNull | collumn | creates a whereNotNull clause |  
 | .orWhereNotNull | collumn | creates a orWhereNotNull clause |  
 
-When you are done contructing, you should end the chain with a call to any of the final methods. These are the standard SQL methods
+When you are done constructing, you should end the chain with a call to any of the final methods. These are the standard SQL methods
 
 `select`, `insert`, `update`, `delete`
 
-Of course, using some of the above final methods does not allways make sense. For example, it dosn't make sense to issue multiple where methods and then end it with an `insert`. 
+Of course, using some of the above final methods does not always make sense. For example, it dosn't make sense to issue multiple where methods and then end the chain with an `insert`. 
 
 ### select
 `select` can take an optional argument, either an array or a comma separated string, to define the rows you want to be retrieved. For example
@@ -167,7 +167,7 @@ DB.Table('posts').where(group, '=', 1).select('id');
 
 ### Parenthesized queries
 
-In many cases, it is required to have queries in parentheses to accomodate with ORs and ANDs. This is easily done by passing a callback function to the whereSpec, as demonstrated bellow
+In many cases, it is required to have queries in parentheses to accomodate with ORs and ANDs. This is easily done by passing a callback function to the whereSpec, as demonstrated below
 
 ```javascript
 DB.Table('users')
@@ -183,7 +183,7 @@ DB.Table('users')
 
 **subselects**
 
-Using subselects in your queries is pretty straight forward. Lets view an example.
+Using subselects in your queries is pretty straight forward. Let's view an example.
 In this example, we get the column `id` from the users, in order to use it to delete the 10 oldest (by id) entries in this table. This is a pretty common use case, because the SQL standard does not allow ORDERBY and LIMIT to be used along with the DELETE statement.  
 
 ```javascript
