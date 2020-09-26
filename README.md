@@ -165,9 +165,9 @@ DB.Table('posts').where(group, '=', 1).select('id');
 ```
 
 
-### Parentesized queries
+### Parenthesized queries
 
-In many cases, it is required to have quereies in parentheses to accomodate with ORs and ANDs. This is easily done by passing a callback function to the whereSpec, as demonstrated bellow
+In many cases, it is required to have queries in parentheses to accomodate with ORs and ANDs. This is easily done by passing a callback function to the whereSpec, as demonstrated bellow
 
 ```javascript
 DB.Table('users')
